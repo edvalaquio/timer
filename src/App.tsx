@@ -1,50 +1,84 @@
-import React, { ReactElement, useState } from "react";
+import React, {
+  FormEvent,
+  ReactElement,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
-type TimerDetails = Readonly<{
-  minutes: number;
-  seconds: number;
-}>;
+import { Timer } from "./types";
+import TimerService, { UnsavedTimer } from "./services/TimerService";
 
 function TimerForm({
-  index,
-  minutes,
-  seconds,
+  onAddTimer,
 }: Readonly<{
-  index: number;
-  minutes: number;
-  seconds: number;
+  onAddTimer: (unsavedTimer: UnsavedTimer) => Promise<void>;
 }>): ReactElement {
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const minuteRef = useRef<HTMLInputElement>(null);
+  const secondRef = useRef<HTMLInputElement>(null);
+
+  const [nameValue, minutesValue, secondsValue] = [
+    nameRef?.current?.value,
+    minuteRef?.current?.value,
+    secondRef?.current?.value,
+  ];
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+
+    if (!nameValue || !minutesValue || !secondsValue) {
+      throw Error("Something went wrong");
+    }
+
+    await onAddTimer({
+      name: nameValue,
+      minutes: Number(minutesValue),
+      seconds: Number(secondsValue),
+    });
+
+    formRef?.current?.reset();
+  };
+
   return (
-    <>
-      <h1>{index + 1}</h1>
-      <form>
-        <label>
-          name: <input type="text" name="name" />
-        </label>
-        <label>
-          minute: <input type="text" name="minute" defaultValue={minutes} />
-        </label>
-        <label>
-          second: <input type="text" name="second" defaultValue={seconds} />
-        </label>
-      </form>
-    </>
+    <form ref={formRef} onSubmit={onSubmit}>
+      <label>
+        name: <input type="text" name="name" ref={nameRef} required />
+      </label>
+      <label>
+        minute: <input type="text" name="minute" ref={minuteRef} required />
+      </label>
+      <label>
+        second: <input type="text" name="second" ref={secondRef} required />
+      </label>
+      <button type="submit" name="add">
+        add
+      </button>
+    </form>
   );
 }
 
 function App(): ReactElement {
-  const [timers, setTimer] = useState<ReadonlyArray<TimerDetails>>([]);
+  /* START TODO: Place in stateHook */
+  const [timers, setTimers] = useState<ReadonlyArray<Timer>>();
 
-  const onAddTimer = () => {
-    const updatedTimers = [
-      ...timers,
-      {
-        minutes: 0,
-        seconds: 0,
-      },
-    ];
-    setTimer(updatedTimers);
-  };
+  async function fetchTimers() {
+    console.log("Fetching timers");
+    const timers = await TimerService.getMany();
+    setTimers(timers);
+  }
+
+  useEffect(() => {
+    fetchTimers();
+  }, []);
+
+  async function onAddTimer(unsavedTimer: UnsavedTimer) {
+    await TimerService.create(unsavedTimer);
+    await fetchTimers();
+  }
+  /* END TODO: Place in stateHook */
 
   return (
     <div>
@@ -52,16 +86,21 @@ function App(): ReactElement {
         <h1>Timer</h1>
       </header>
       <section>
-        <button type="button" onClick={onAddTimer} name="submit">
-          add
-        </button>
-        {timers.map((timerDetails, index) => {
-          return (
-            <React.Fragment key={index}>
-              <TimerForm {...timerDetails} index={index} />
-            </React.Fragment>
-          );
-        })}
+        <TimerForm onAddTimer={onAddTimer} />
+        {timers && timers.length > 0 ? (
+          timers?.map(({ name, minutes, seconds }, index) => {
+            return (
+              <div key={index}>
+                <h2>{index}</h2>
+                <p>{name}</p>
+                <p>{`minutes: ${minutes}`}</p>
+                <p>{`seconds: ${seconds}`}</p>
+              </div>
+            );
+          })
+        ) : (
+          <h1>No available timers</h1>
+        )}
       </section>
     </div>
   );
