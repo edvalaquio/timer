@@ -1,20 +1,18 @@
 import { set, values, get } from "idb-keyval";
 import { v4 as uuidv4 } from "uuid";
 
-import { Timer } from "../types";
+import { Timer, Time } from "../types";
 
 export type UnsavedTimer = Readonly<{
   name: string;
-  minutes: number;
-  seconds: number;
+  rawTime: Time;
+  totalSeconds: number;
 }>;
 
 async function create(unsavedTimer: UnsavedTimer): Promise<void> {
   const id = uuidv4();
-  await set(id, {
-    id,
-    ...unsavedTimer,
-  });
+
+  await set(id, unsavedTimer);
 }
 
 async function getMany(): Promise<ReadonlyArray<Timer>> {

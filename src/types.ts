@@ -7,5 +7,6 @@ export type Time = Readonly<{
 export type Timer = Readonly<{
   id: string;
   name: string;
-}> &
-  Time;
+  rawTime: Time;
+  totalSeconds: number;
+}>;
