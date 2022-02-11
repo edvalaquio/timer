@@ -8,6 +8,7 @@
         "@types/react": "^16.14.22",
         "@types/react-dom": "^16.9.14",
         "@types/uuid": "^8.3.4",
+        "deep-freeze": "^0.0.1",
         "idb-keyval": "^6.1.0",
         "react": "^17.0.2",
         "react-dom": "^17.0.2",
@@ -50,7 +51,9 @@
     "devDependencies": {
         "@testing-library/jest-dom": "^5.16.2",
         "@testing-library/react": "^11.2.7",
+        "@testing-library/react-hooks": "^7.0.2",
         "@testing-library/user-event": "^13.5.0",
+        "@types/deep-freeze": "^0.1.2",
         "@typescript-eslint/eslint-plugin": "^5.10.2",
         "@typescript-eslint/parser": "^5.10.2",
         "eslint-config-airbnb-typescript": "^16.1.0",

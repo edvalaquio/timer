@@ -1,8 +1,8 @@
 import React, { ReactElement, useEffect, useState } from "react";
 
 import { Time, Timer } from "./types";
-import TimerService from "./services/TimerService";
 import TimerForm from "./components/TimerForm";
+import useTimers from "./hooks/useTimers";
 
 const ONE_MS = 1000;
 
@@ -27,18 +27,8 @@ function ActiveTimer({ name, totalSeconds }: Timer): ReactElement {
 }
 
 function App(): ReactElement {
-  const [timers, setTimers] = useState<ReadonlyArray<Timer>>();
+  const { timers, refreshTimers } = useTimers();
   const [activeTimer, setActiveTimer] = useState<Timer>();
-
-  async function fetchTimers() {
-    console.log("Fetching timers");
-    const timers = await TimerService.getMany();
-    setTimers(timers);
-  }
-
-  useEffect(() => {
-    fetchTimers();
-  }, []);
 
   useEffect(() => {
     if (!activeTimer) return;
@@ -76,7 +66,7 @@ function App(): ReactElement {
           <button>Pause</button>
           <button>Reset</button>
         </div>
-        <TimerForm onSubmit={fetchTimers} />
+        <TimerForm onSubmit={refreshTimers} />
 
         <div>{activeTimer && <ActiveTimer {...activeTimer} />}</div>
         <div>
