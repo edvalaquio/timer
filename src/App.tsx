@@ -1,13 +1,8 @@
-import React, {
-  FormEvent,
-  ReactElement,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { ReactElement, useEffect, useState } from "react";
 
 import { Time, Timer } from "./types";
-import TimerService, { UnsavedTimer } from "./services/TimerService";
+import TimerService from "./services/TimerService";
+import TimerForm from "./components/TimerForm";
 
 const ONE_MS = 1000;
 
@@ -20,15 +15,8 @@ function secondsToTime(seconds: number): Time {
   };
 }
 
-function ActiveTimer({
-  name,
-  remainingTime,
-}: {
-  id: string;
-  name: string;
-  remainingTime: number;
-}): ReactElement {
-  const { minutes, seconds } = secondsToTime(remainingTime);
+function ActiveTimer({ name, totalSeconds }: Timer): ReactElement {
+  const { minutes, seconds } = secondsToTime(totalSeconds);
   return (
     <>
       <h2>{name}</h2>
@@ -38,67 +26,9 @@ function ActiveTimer({
   );
 }
 
-function TimerForm({
-  onAddTimer,
-}: Readonly<{
-  onAddTimer: (unsavedTimer: UnsavedTimer) => Promise<void>;
-}>): ReactElement {
-  const formRef = useRef<HTMLFormElement>(null);
-
-  const nameRef = useRef<HTMLInputElement>(null);
-  const minuteRef = useRef<HTMLInputElement>(null);
-  const secondRef = useRef<HTMLInputElement>(null);
-
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    const [nameValue, minutesValue, secondsValue] = [
-      nameRef?.current?.value,
-      minuteRef?.current?.value,
-      secondRef?.current?.value,
-    ];
-
-    if (nameValue == null || minutesValue == null || secondsValue == null) {
-      throw Error("Something went wrong");
-    }
-
-    await onAddTimer({
-      name: nameValue,
-      minutes: Number(minutesValue),
-      seconds: Number(secondsValue),
-    });
-
-    formRef?.current?.reset();
-  };
-
-  return (
-    <form ref={formRef} onSubmit={onSubmit}>
-      <label>
-        name: <input type="text" name="name" ref={nameRef} required />
-      </label>
-      <label>
-        minute: <input type="text" name="minute" ref={minuteRef} required />
-      </label>
-      <label>
-        second: <input type="text" name="second" ref={secondRef} required />
-      </label>
-      <button type="submit" name="add">
-        add
-      </button>
-    </form>
-  );
-}
-
-function getTotalSeconds({ minutes, seconds }: Time): number {
-  return minutes * 60 + seconds;
-}
-
 function App(): ReactElement {
   const [timers, setTimers] = useState<ReadonlyArray<Timer>>();
-  const [activeTimer, setActiveTimer] = useState<{
-    id: string;
-    name: string;
-    remainingTime: number;
-  }>();
+  const [activeTimer, setActiveTimer] = useState<Timer>();
 
   async function fetchTimers() {
     console.log("Fetching timers");
@@ -112,35 +42,27 @@ function App(): ReactElement {
 
   useEffect(() => {
     if (!activeTimer) return;
-    if (activeTimer.remainingTime === 0) {
+    if (activeTimer.totalSeconds === 0) {
       console.info("Timer completed");
       return;
     }
 
+    const { totalSeconds, ...restActiveTimer } = activeTimer;
+
     const timeout = setTimeout(() => {
       setActiveTimer({
-        ...activeTimer,
-        remainingTime: activeTimer.remainingTime - 1,
+        ...restActiveTimer,
+        totalSeconds: totalSeconds - 1,
       });
     }, ONE_MS);
 
     return () => clearTimeout(timeout);
   }, [activeTimer]);
 
-  async function onAddTimer(unsavedTimer: UnsavedTimer) {
-    await TimerService.create(unsavedTimer);
-    await fetchTimers();
-  }
-
   function onStartTimers() {
     if (!timers || timers.length === 0) throw Error("No timers available");
 
-    const { id, name, minutes, seconds } = timers[0];
-    setActiveTimer({
-      id,
-      name,
-      remainingTime: getTotalSeconds({ minutes, seconds }),
-    });
+    setActiveTimer(timers[0]);
   }
 
   return (
@@ -154,13 +76,14 @@ function App(): ReactElement {
           <button>Pause</button>
           <button>Reset</button>
         </div>
-        <TimerForm onAddTimer={onAddTimer} />
+        <TimerForm onSubmit={fetchTimers} />
+
         <div>{activeTimer && <ActiveTimer {...activeTimer} />}</div>
         <div>
           {timers && timers.length > 0 ? (
-            timers.map(({ name, minutes, seconds }, index) => {
+            timers.map(({ id, name, rawTime: { minutes, seconds } }, index) => {
               return (
-                <div key={index}>
+                <div key={`${name}-${id}`}>
                   <h2>{index + 1}</h2>
                   <p>{name}</p>
                   <p>{`minutes: ${minutes}`}</p>
