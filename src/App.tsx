@@ -6,8 +6,37 @@ import React, {
   useState,
 } from "react";
 
-import { Timer } from "./types";
+import { Time, Timer } from "./types";
 import TimerService, { UnsavedTimer } from "./services/TimerService";
+
+const ONE_MS = 1000;
+
+function secondsToTime(seconds: number): Time {
+  const newMinutes = Math.floor(seconds / 60);
+  const newSeconds = seconds % 60;
+  return {
+    minutes: newMinutes,
+    seconds: newSeconds,
+  };
+}
+
+function ActiveTimer({
+  name,
+  remainingTime,
+}: {
+  id: string;
+  name: string;
+  remainingTime: number;
+}): ReactElement {
+  const { minutes, seconds } = secondsToTime(remainingTime);
+  return (
+    <>
+      <h2>{name}</h2>
+      <p>{minutes}</p>
+      <p>{seconds}</p>
+    </>
+  );
+}
 
 function TimerForm({
   onAddTimer,
@@ -20,16 +49,15 @@ function TimerForm({
   const minuteRef = useRef<HTMLInputElement>(null);
   const secondRef = useRef<HTMLInputElement>(null);
 
-  const [nameValue, minutesValue, secondsValue] = [
-    nameRef?.current?.value,
-    minuteRef?.current?.value,
-    secondRef?.current?.value,
-  ];
-
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const [nameValue, minutesValue, secondsValue] = [
+      nameRef?.current?.value,
+      minuteRef?.current?.value,
+      secondRef?.current?.value,
+    ];
 
-    if (!nameValue || !minutesValue || !secondsValue) {
+    if (nameValue == null || minutesValue == null || secondsValue == null) {
       throw Error("Something went wrong");
     }
 
@@ -60,9 +88,17 @@ function TimerForm({
   );
 }
 
+function getTotalSeconds({ minutes, seconds }: Time): number {
+  return minutes * 60 + seconds;
+}
+
 function App(): ReactElement {
-  /* START TODO: Place in stateHook */
   const [timers, setTimers] = useState<ReadonlyArray<Timer>>();
+  const [activeTimer, setActiveTimer] = useState<{
+    id: string;
+    name: string;
+    remainingTime: number;
+  }>();
 
   async function fetchTimers() {
     console.log("Fetching timers");
@@ -74,11 +110,38 @@ function App(): ReactElement {
     fetchTimers();
   }, []);
 
+  useEffect(() => {
+    if (!activeTimer) return;
+    if (activeTimer.remainingTime === 0) {
+      console.info("Timer completed");
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setActiveTimer({
+        ...activeTimer,
+        remainingTime: activeTimer.remainingTime - 1,
+      });
+    }, ONE_MS);
+
+    return () => clearTimeout(timeout);
+  }, [activeTimer]);
+
   async function onAddTimer(unsavedTimer: UnsavedTimer) {
     await TimerService.create(unsavedTimer);
     await fetchTimers();
   }
-  /* END TODO: Place in stateHook */
+
+  function onStartTimers() {
+    if (!timers || timers.length === 0) throw Error("No timers available");
+
+    const { id, name, minutes, seconds } = timers[0];
+    setActiveTimer({
+      id,
+      name,
+      remainingTime: getTotalSeconds({ minutes, seconds }),
+    });
+  }
 
   return (
     <div>
@@ -86,21 +149,29 @@ function App(): ReactElement {
         <h1>Timer</h1>
       </header>
       <section>
+        <div>
+          <button onClick={onStartTimers}>Start</button>
+          <button>Pause</button>
+          <button>Reset</button>
+        </div>
         <TimerForm onAddTimer={onAddTimer} />
-        {timers && timers.length > 0 ? (
-          timers?.map(({ name, minutes, seconds }, index) => {
-            return (
-              <div key={index}>
-                <h2>{index}</h2>
-                <p>{name}</p>
-                <p>{`minutes: ${minutes}`}</p>
-                <p>{`seconds: ${seconds}`}</p>
-              </div>
-            );
-          })
-        ) : (
-          <h1>No available timers</h1>
-        )}
+        <div>{activeTimer && <ActiveTimer {...activeTimer} />}</div>
+        <div>
+          {timers && timers.length > 0 ? (
+            timers.map(({ name, minutes, seconds }, index) => {
+              return (
+                <div key={index}>
+                  <h2>{index + 1}</h2>
+                  <p>{name}</p>
+                  <p>{`minutes: ${minutes}`}</p>
+                  <p>{`seconds: ${seconds}`}</p>
+                </div>
+              );
+            })
+          ) : (
+            <h1>No available timers</h1>
+          )}
+        </div>
       </section>
     </div>
   );
