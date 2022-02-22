@@ -28,12 +28,24 @@ function ActiveTimer({ name, totalSeconds }: Timer): ReactElement {
 
 function App(): ReactElement {
   const { timers, refreshTimers } = useTimers();
+
+  const [activeTimersList, setActiveTimersList] =
+    useState<ReadonlyArray<Timer>>(timers);
   const [activeTimer, setActiveTimer] = useState<Timer>();
+
+  useEffect(() => {
+    setActiveTimersList(timers);
+  }, [timers]);
 
   useEffect(() => {
     if (!activeTimer) return;
     if (activeTimer.totalSeconds === 0) {
-      console.info("Timer completed");
+      console.info(`Timer ${activeTimer.id} completed`);
+      const [nextTimer, ...otherTimers] = activeTimersList.filter(
+        (timer) => timer.id !== activeTimer.id
+      );
+      setActiveTimer(nextTimer);
+      setActiveTimersList(otherTimers);
       return;
     }
 
@@ -47,12 +59,16 @@ function App(): ReactElement {
     }, ONE_MS);
 
     return () => clearTimeout(timeout);
-  }, [activeTimer]);
+  }, [activeTimer, activeTimersList]);
 
   function onStartTimers() {
-    if (!timers || timers.length === 0) throw Error("No timers available");
+    if (!activeTimersList || activeTimersList.length === 0) {
+      throw Error("No timers available");
+    }
 
-    setActiveTimer(timers[0]);
+    const [currentTimer, ...otherTimers] = activeTimersList;
+    setActiveTimer(currentTimer);
+    setActiveTimersList(otherTimers);
   }
 
   return (
@@ -61,26 +77,33 @@ function App(): ReactElement {
         <h1>Timer</h1>
       </header>
       <section>
+        <TimerForm onSubmit={refreshTimers} />
         <div>
           <button onClick={onStartTimers}>Start</button>
           <button>Pause</button>
-          <button>Reset</button>
+          <button onClick={refreshTimers}>Reset</button>
         </div>
-        <TimerForm onSubmit={refreshTimers} />
-
-        <div>{activeTimer && <ActiveTimer {...activeTimer} />}</div>
         <div>
-          {timers && timers.length > 0 ? (
-            timers.map(({ id, name, rawTime: { minutes, seconds } }, index) => {
-              return (
-                <div key={`${name}-${id}`}>
-                  <h2>{index + 1}</h2>
-                  <p>{name}</p>
-                  <p>{`minutes: ${minutes}`}</p>
-                  <p>{`seconds: ${seconds}`}</p>
-                </div>
-              );
-            })
+          {activeTimer ? (
+            <ActiveTimer {...activeTimer} />
+          ) : (
+            <h1>No active timer</h1>
+          )}
+        </div>
+        <div>
+          {activeTimersList && activeTimersList.length > 0 ? (
+            activeTimersList.map(
+              ({ id, name, rawTime: { minutes, seconds } }, index) => {
+                return (
+                  <div key={`${name}-${id}`}>
+                    <h2>{index + 1}</h2>
+                    <p>{name}</p>
+                    <p>{`minutes: ${minutes}`}</p>
+                    <p>{`seconds: ${seconds}`}</p>
+                  </div>
+                );
+              }
+            )
           ) : (
             <h1>No available timers</h1>
           )}

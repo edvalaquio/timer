@@ -3,9 +3,10 @@ export type Time = Readonly<{
   seconds: number;
 }>;
 
-// TODO: Time should be a property within Timer, not members
+export type TimerId = string;
+
 export type Timer = Readonly<{
-  id: string;
+  id: TimerId;
   name: string;
   rawTime: Time;
   totalSeconds: number;
